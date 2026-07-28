@@ -1,6 +1,26 @@
 /* 내 루틴 — 운동 루틴 ↔ 내 폰 동영상 연결 PWA */
 'use strict';
 
+const BUILD = '2026-07-28b';
+const PROBLEMS = [];
+let rendered = false;
+
+function fatal(msg) {
+  PROBLEMS.push(msg);
+  const v = document.getElementById('view');
+  if (!v || rendered) return;
+  v.innerHTML =
+    '<div class="card" style="border-color:#e04b3c">' +
+    '<h2 style="color:#e04b3c">앱을 시작하지 못했습니다</h2>' +
+    '<div class="it-sub" style="white-space:pre-wrap;word-break:break-all;color:var(--text)">' +
+    String(msg).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c])) +
+    '</div><button class="btn" style="width:100%;margin-top:12px" onclick="location.reload()">다시 시도</button></div>';
+}
+window.addEventListener('error', (e) => fatal(`${e.message}\n${e.filename || ''}:${e.lineno || ''}`));
+window.addEventListener('unhandledrejection', (e) => {
+  PROBLEMS.push('rejection: ' + ((e.reason && e.reason.message) || e.reason));
+});
+
 const DAYS = ['월', '화', '수', '목', '금', '토', '일'];
 const $ = (s) => document.querySelector(s);
 
@@ -19,6 +39,8 @@ const ICON = {
   down: '<path d="M12 5v14M6 13l6 6 6-6"/>',
   unlink: '<path d="M4 4l16 16M10 13a5 5 0 0 0 6.5.5M13.5 7.5A5 5 0 0 1 20 10l-2 2"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
+  refresh: '<path d="M20 12a8 8 0 1 1-2.3-5.6M20 4v5h-5"/>',
+  info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>',
 };
 const ic = (n, cls) => `<svg class="${cls || ''}" viewBox="0 0 24 24" aria-hidden="true">${ICON[n]}</svg>`;
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -367,6 +389,41 @@ function render() {
   else renderLib();
   document.querySelectorAll('.navbtn').forEach((b) => b.classList.toggle('is-on', b.dataset.nav === NAV));
   $('#tabstrip').hidden = NAV !== 'routine';
+  rendered = true;
+}
+
+async function showDiag() {
+  let est = '확인 불가';
+  try {
+    const e = await navigator.storage.estimate();
+    est = `${fmtSize(e.usage)} / ${fmtSize(e.quota)}`;
+  } catch (_) {}
+  const lines = [
+    ['빌드', BUILD],
+    ['주소', location.href],
+    ['보안 컨텍스트', window.isSecureContext ? '예 (https)' : '아니오 — https가 아니면 동작하지 않습니다'],
+    ['홈 화면 실행', matchMedia('(display-mode: standalone)').matches ? '예' : '아니오 (브라우저 탭)'],
+    ['IndexedDB', 'indexedDB' in window ? '사용 가능' : '없음'],
+    ['서비스 워커', 'serviceWorker' in navigator ? '사용 가능' : '없음'],
+    ['파일 피커', hasPicker ? '지원 (원본 참조)' : '미지원 (앱 저장소 복사)'],
+    ['저장 사용량', est],
+    ['루틴 / 영상', `${S.tabs.length}개 / ${VIDEOS.size}개`],
+    ['기록된 오류', PROBLEMS.length ? PROBLEMS.join(' | ') : '없음'],
+  ];
+  const text = lines.map(([k, v]) => `${k}: ${v}`).join('\n');
+  sheet('진단 정보', [
+    { html: `<div style="padding:4px 12px 10px">${lines.map(([k, v]) => `<div class="kv"><span>${esc(k)}</span><span style="text-align:right;word-break:break-all">${esc(v)}</span></div>`).join('')}</div>` },
+    { icon: 'copy', label: '진단 정보 복사', run: () => navigator.clipboard.writeText(text).then(() => toast('복사했습니다'), () => toast('복사에 실패했습니다')) },
+    { icon: 'refresh', label: '캐시 비우고 새로고침', run: async () => {
+        try {
+          const rs = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(rs.map((r) => r.unregister()));
+          const ks = await caches.keys();
+          await Promise.all(ks.map((k) => caches.delete(k)));
+        } catch (_) {}
+        location.reload();
+      } },
+  ]);
 }
 
 function renderTabs() {
@@ -628,6 +685,7 @@ document.querySelectorAll('.navbtn').forEach((b) => { b.onclick = () => { NAV = 
 $('#btnStorage').onclick = () => sheet('데이터', [
   { icon: 'copy', label: '루틴 백업 파일 내보내기', run: exportData },
   { icon: 'link', label: '백업 파일 불러오기', run: importData },
+  { icon: 'info', label: '진단 정보 보기', run: showDiag },
 ]);
 $('#playerClose').onclick = closePlayer;
 $('#playerSkip').onclick = closePlayer;
@@ -654,7 +712,12 @@ document.addEventListener('visibilitychange', async () => {
     toast('저장된 데이터를 읽지 못했습니다');
   }
   if (S.openDay === undefined) S.openDay = todayIdx();
-  render();
+  try {
+    render();
+  } catch (e) {
+    fatal('화면을 그리지 못했습니다\n' + (e && e.message));
+    return;
+  }
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
   if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
 })();
