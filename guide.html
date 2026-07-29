@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0e1013" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<title>내 루틴 — 기능 설명서</title>
+<link rel="icon" href="./icon-192.png">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<style>
+:root{
+  color-scheme: light dark;
+  --bg:#f6f6f4; --surface:#ffffff; --surface-2:#eeeeeb; --surface-3:#e4e4e0;
+  --line:rgba(0,0,0,.10); --line-2:rgba(0,0,0,.18);
+  --text:#16181b; --dim:#63676d; --faint:#9aa0a8;
+  --accent:#e2542a; --accent-ink:#ffffff; --accent-soft:rgba(226,84,42,.10);
+  --ok:#1a8f74; --ok-soft:rgba(26,143,116,.12);
+  --warn:#b06a00; --warn-soft:rgba(176,106,0,.10);
+  --yt:#ff0000;
+  --r:14px;
+  --safe-b:env(safe-area-inset-bottom,0px);
+  --safe-t:env(safe-area-inset-top,0px);
+  --font:-apple-system,BlinkMacSystemFont,"Pretendard","Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",Roboto,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"D2Coding",monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0e1013; --surface:#191c20; --surface-2:#22262b; --surface-3:#2c3138;
+    --line:rgba(255,255,255,.09); --line-2:rgba(255,255,255,.18);
+    --text:#e9eaec; --dim:#9aa0a8; --faint:#6d747c;
+    --accent:#ff6b3d; --accent-ink:#1a0d07; --accent-soft:rgba(255,107,61,.14);
+    --ok:#2fbf9e; --ok-soft:rgba(47,191,158,.14);
+    --warn:#e8a33c; --warn-soft:rgba(232,163,60,.12);
+    --yt:#ff3b30;
+  }
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg);color:var(--text);font-family:var(--font);
+  font-size:15.5px;line-height:1.62;
+  -webkit-text-size-adjust:100%;
+}
+svg{fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+a{color:var(--accent);text-underline-offset:3px}
+
+/* 헤더 */
+.hero{
+  padding:calc(var(--safe-t) + 34px) 20px 26px;
+  border-bottom:1px solid var(--line);
+  background:
+    radial-gradient(120% 90% at 10% 0%, var(--accent-soft), transparent 60%),
+    var(--surface);
+}
+.hero-in{max-width:900px;margin:0 auto}
+.badge{
+  display:inline-flex;align-items:center;gap:6px;
+  font-size:12px;font-weight:600;letter-spacing:.02em;
+  color:var(--accent);background:var(--accent-soft);
+  border:1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  padding:4px 10px;border-radius:999px;
+}
+.hero h1{margin:12px 0 6px;font-size:clamp(26px,6vw,36px);line-height:1.2;letter-spacing:-.02em}
+.hero p{margin:0;color:var(--dim);max-width:60ch}
+.hero-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}
+.cta{
+  display:inline-flex;align-items:center;gap:7px;
+  padding:10px 15px;border-radius:11px;font-size:14.5px;font-weight:600;
+  text-decoration:none;border:1px solid var(--line-2);color:var(--text);
+}
+.cta.primary{background:var(--accent);color:var(--accent-ink);border-color:transparent}
+.cta svg{width:17px;height:17px}
+
+/* 레이아웃 */
+.wrap{max-width:900px;margin:0 auto;padding:0 20px calc(60px + var(--safe-b))}
+.toc{
+  margin:22px 0 8px;padding:14px 16px;
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--r);
+}
+.toc b{display:block;font-size:12.5px;letter-spacing:.04em;color:var(--faint);text-transform:uppercase;margin-bottom:9px}
+.toc ol{margin:0;padding:0;list-style:none;display:grid;gap:2px;grid-template-columns:1fr}
+@media (min-width:640px){.toc ol{grid-template-columns:1fr 1fr}}
+.toc a{display:block;padding:4px 0;color:var(--text);text-decoration:none;font-size:14.5px}
+.toc a:hover{color:var(--accent)}
+.toc .num{display:inline-block;width:1.7em;color:var(--faint);font-variant-numeric:tabular-nums}
+
+section{scroll-margin-top:16px;padding-top:34px}
+h2{
+  font-size:20px;letter-spacing:-.01em;margin:0 0 4px;
+  display:flex;align-items:baseline;gap:9px;
+}
+h2 .num{
+  font-size:12px;font-weight:700;color:var(--accent);
+  background:var(--accent-soft);border-radius:6px;padding:2px 7px;
+  transform:translateY(-2px);
+}
+.lede{color:var(--dim);margin:0 0 14px}
+h3{font-size:15.5px;margin:20px 0 6px}
+p{margin:0 0 10px}
+
+.card{
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--r);
+  padding:15px 16px;margin:12px 0;
+}
+.card h3:first-child{margin-top:0}
+
+/* 목록 */
+ul.plain{margin:0;padding-left:1.1em}
+ul.plain li{margin:5px 0}
+ul.plain li::marker{color:var(--faint)}
+
+dl.rows{margin:0;display:grid;gap:0}
+dl.rows>div{
+  display:grid;grid-template-columns:minmax(96px,148px) 1fr;gap:12px;
+  padding:10px 0;border-bottom:1px solid var(--line);align-items:start;
+}
+dl.rows>div:last-child{border-bottom:0}
+dl.rows dt{font-weight:600;font-size:14.5px}
+dl.rows dd{margin:0;color:var(--dim);font-size:14.5px;min-width:0}
+@media (max-width:480px){
+  dl.rows>div{grid-template-columns:1fr;gap:2px}
+}
+
+/* 조작 카드 */
+.gestures{display:grid;gap:10px;grid-template-columns:1fr}
+@media (min-width:640px){.gestures{grid-template-columns:1fr 1fr}}
+.g{
+  display:flex;gap:12px;align-items:flex-start;
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 15px;
+}
+.g .ico{
+  flex:0 0 auto;width:36px;height:36px;border-radius:10px;
+  background:var(--surface-2);display:grid;place-items:center;color:var(--dim);
+}
+.g .ico svg{width:19px;height:19px}
+.g b{display:block;font-size:14.5px;margin-bottom:1px}
+.g span{color:var(--dim);font-size:13.5px}
+
+/* 비교 표 */
+.tablewrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:12px 0;
+  border:1px solid var(--line);border-radius:var(--r);background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:520px;font-size:14px}
+th,td{padding:11px 14px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+thead th{font-size:12.5px;letter-spacing:.03em;color:var(--faint);text-transform:uppercase;font-weight:600;
+  background:var(--surface-2)}
+tbody tr:last-child td{border-bottom:0}
+td:first-child,th:first-child{font-weight:600;color:var(--text)}
+td{color:var(--dim)}
+.yes{color:var(--ok);font-weight:600}
+.no{color:var(--warn);font-weight:600}
+
+/* 코드 / 칩 */
+code{
+  font-family:var(--mono);font-size:.88em;
+  background:var(--surface-2);border:1px solid var(--line);
+  padding:1px 5px;border-radius:5px;word-break:break-all;
+}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 2px}
+.chip{
+  font-family:var(--mono);font-size:12.5px;
+  background:var(--surface-2);border:1px solid var(--line);
+  padding:4px 9px;border-radius:8px;color:var(--dim);
+}
+
+/* 콜아웃 */
+.note{
+  border-left:3px solid var(--accent);background:var(--accent-soft);
+  border-radius:0 10px 10px 0;padding:11px 14px;margin:12px 0;font-size:14.5px;
+}
+.note.warn{border-left-color:var(--warn);background:var(--warn-soft)}
+.note.ok{border-left-color:var(--ok);background:var(--ok-soft)}
+.note b{display:block;margin-bottom:2px}
+
+/* 단계 */
+ol.steps{counter-reset:s;list-style:none;margin:10px 0;padding:0}
+ol.steps li{
+  counter-increment:s;position:relative;padding:0 0 12px 34px;
+}
+ol.steps li::before{
+  content:counter(s);position:absolute;left:0;top:1px;
+  width:22px;height:22px;border-radius:50%;
+  background:var(--accent);color:var(--accent-ink);
+  font-size:12px;font-weight:700;display:grid;place-items:center;
+}
+ol.steps li:last-child{padding-bottom:0}
+ol.steps b{font-weight:600}
+
+/* 유튜브 강조 */
+.ytmark{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:17px;height:12px;border-radius:3px;background:var(--yt);vertical-align:-1px;margin-right:5px;
+}
+.ytmark::after{content:'';width:0;height:0;margin-left:1px;
+  border-left:5px solid #fff;border-top:3px solid transparent;border-bottom:3px solid transparent}
+
+/* 푸터 */
+footer{
+  margin-top:44px;padding-top:18px;border-top:1px solid var(--line);
+  color:var(--faint);font-size:13px;
+}
+footer .kv{display:flex;justify-content:space-between;gap:12px;padding:3px 0}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-in">
+    <span class="badge">
+      <svg viewBox="0 0 24 24" style="width:13px;height:13px"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="m10 10 5 3-5 3z"/></svg>
+      PWA · 오프라인 지원 · 설치형
+    </span>
+    <h1>내 루틴 — 기능 설명서</h1>
+    <p>요일별 운동 루틴을 짜고, 각 운동에 <b>내 폰에 있는 동영상</b> 또는 <b>유튜브 링크</b>를 연결해 바로 재생하는 앱입니다. 서버 없이 기기 안에서만 동작합니다.</p>
+    <div class="hero-actions">
+      <a class="cta primary" href="./index.html">
+        <svg viewBox="0 0 24 24"><path d="m8 5 11 7-11 7z"/></svg>
+        앱 열기
+      </a>
+      <a class="cta" href="#install">
+        <svg viewBox="0 0 24 24"><path d="M12 4v11M7 11l5 5 5-5"/><path d="M5 20h14"/></svg>
+        홈 화면에 설치하기
+      </a>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <nav class="toc">
+    <b>목차</b>
+    <ol>
+      <li><a href="#overview"><span class="num">01</span>앱 개요</a></li>
+      <li><a href="#install"><span class="num">02</span>설치와 시작</a></li>
+      <li><a href="#screens"><span class="num">03</span>화면 구성</a></li>
+      <li><a href="#gestures"><span class="num">04</span>기본 조작법</a></li>
+      <li><a href="#routine"><span class="num">05</span>루틴 · 운동 관리</a></li>
+      <li><a href="#link"><span class="num">06</span>동영상 연결 (2가지 방식)</a></li>
+      <li><a href="#youtube"><span class="num">07</span>유튜브 링크 자세히</a></li>
+      <li><a href="#play"><span class="num">08</span>재생과 완료 기록</a></li>
+      <li><a href="#library"><span class="num">09</span>영상함과 저장공간</a></li>
+      <li><a href="#backup"><span class="num">10</span>백업과 복원</a></li>
+      <li><a href="#trouble"><span class="num">11</span>문제 해결 · 진단</a></li>
+      <li><a href="#tech"><span class="num">12</span>기술 구조 (개발자용)</a></li>
+    </ol>
+  </nav>
+
+  <!-- 01 -->
+  <section id="overview">
+    <h2><span class="num">01</span>앱 개요</h2>
+    <p class="lede">"오늘 뭐 하지?"를 없애는 것이 목표입니다. 요일별로 할 운동을 미리 정해두고, 각 운동에 시범 영상을 붙여두면 운동할 때 항목만 누르면 바로 영상이 재생됩니다.</p>
+
+    <div class="card">
+      <dl class="rows">
+        <div><dt>루틴 여러 개</dt><dd>‘상체 위주’, ‘출장용’처럼 루틴을 여러 벌 만들어 상단 탭으로 전환합니다.</dd></div>
+        <div><dt>요일별 구성</dt><dd>월~일 각각에 운동 목록을 둡니다. 오늘 요일은 자동으로 강조되고 펼쳐집니다.</dd></div>
+        <div><dt>영상 연결</dt><dd>운동 하나당 영상 하나. 폰 안의 파일이나 유튜브 링크 중 원하는 쪽을 고릅니다.</dd></div>
+        <div><dt>완료 기록</dt><dd>영상을 끝까지 보거나 [완료]를 누르면 오늘 기록에 남고, 연속 달성 일수가 집계됩니다.</dd></div>
+        <div><dt>완전 로컬</dt><dd>계정·로그인·서버가 없습니다. 모든 데이터는 기기의 브라우저 저장소에만 있습니다.</dd></div>
+        <div><dt>오프라인</dt><dd>서비스 워커가 앱 자체를 캐시하므로 인터넷 없이도 켜집니다. (유튜브 영상은 예외 — 인터넷 필요)</dd></div>
+      </dl>
+    </div>
+  </section>
+
+  <!-- 02 -->
+  <section id="install">
+    <h2><span class="num">02</span>설치와 시작</h2>
+    <p class="lede">브라우저 탭에서 그냥 써도 되지만, 홈 화면에 추가하면 주소창 없는 전체 화면으로 열리고 저장 데이터도 더 안전하게 보존됩니다.</p>
+
+    <div class="card">
+      <h3>아이폰 (Safari)</h3>
+      <ol class="steps">
+        <li>Safari로 앱 주소를 엽니다. <b>Safari여야 합니다</b> — 크롬 등 다른 앱에서는 홈 화면 추가가 되지 않습니다.</li>
+        <li>하단 <b>공유</b> 버튼(↑) → <b>홈 화면에 추가</b>를 누릅니다.</li>
+        <li>홈 화면에 생긴 아이콘으로 실행합니다.</li>
+      </ol>
+      <h3>안드로이드 (Chrome)</h3>
+      <ol class="steps">
+        <li>Chrome으로 앱 주소를 엽니다.</li>
+        <li>우측 상단 <b>⋮</b> → <b>앱 설치</b> 또는 <b>홈 화면에 추가</b>를 누릅니다.</li>
+        <li>설치 배너가 뜨면 그것을 눌러도 됩니다.</li>
+      </ol>
+    </div>
+
+    <div class="note warn">
+      <b>https에서만 동작합니다</b>
+      서비스 워커·파일 접근·저장소 API가 모두 보안 컨텍스트를 요구합니다. <code>http://</code> 주소로 열면 기능이 동작하지 않습니다. (<code>localhost</code>는 예외)
+    </div>
+  </section>
+
+  <!-- 03 -->
+  <section id="screens">
+    <h2><span class="num">03</span>화면 구성</h2>
+    <p class="lede">하단 탭 3개와 상단 메뉴 하나가 전부입니다.</p>
+
+    <div class="card">
+      <dl class="rows">
+        <div>
+          <dt>루틴</dt>
+          <dd>메인 화면. 상단에 주간 요약(요일별 <code>연결됨/전체</code>)이 있고, 아래로 월~일 접이식 목록이 이어집니다. 오늘 요일에는 ‘오늘’ 배지가 붙고 완료 개수가 표시됩니다.</dd>
+        </div>
+        <div>
+          <dt>기록</dt>
+          <dd>연속 달성 일수, 누적 완료 횟수, 오늘 완료 횟수와 최근 3주 달성 현황을 점으로 보여줍니다.</dd>
+        </div>
+        <div>
+          <dt>영상함</dt>
+          <dd>연결한 영상 전체 목록. 각 영상이 어느 루틴·요일에서 쓰이는지 표시되고, 저장공간 사용량도 여기서 확인·관리합니다.</dd>
+        </div>
+        <div>
+          <dt>상단 ☰ 메뉴</dt>
+          <dd>루틴 백업 내보내기 / 백업 불러오기 / 진단 정보 보기.</dd>
+        </div>
+      </dl>
+    </div>
+  </section>
+
+  <!-- 04 -->
+  <section id="gestures">
+    <h2><span class="num">04</span>기본 조작법</h2>
+    <p class="lede">규칙은 하나입니다 — <b>짧게 누르면 실행, 길게 누르면 메뉴.</b></p>
+
+    <div class="gestures">
+      <div class="g">
+        <span class="ico"><svg viewBox="0 0 24 24"><path d="M12 3v6"/><circle cx="12" cy="14" r="6"/></svg></span>
+        <div><b>운동 짧게 누르기</b><span>영상 재생. 아직 영상이 없으면 연결 방식 선택 창이 열립니다.</span></div>
+      </div>
+      <div class="g">
+        <span class="ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg></span>
+        <div><b>운동 길게 누르기</b><span>재생 · 영상 변경 · 이름 변경 · 완료 표시 · 순서 이동 · 연결 해제 · 삭제 메뉴.</span></div>
+      </div>
+      <div class="g">
+        <span class="ico"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h10M4 17h7"/></svg></span>
+        <div><b>루틴 탭 누르기</b><span>다른 탭이면 전환, 이미 선택된 탭을 다시 누르면 탭 메뉴가 열립니다.</span></div>
+      </div>
+      <div class="g">
+        <span class="ico"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></span>
+        <div><b>요일 헤더 누르기</b><span>해당 요일을 펼치거나 접습니다. 한 번에 한 요일만 펼쳐집니다.</span></div>
+      </div>
+    </div>
+
+    <div class="note">
+      <b>PC에서 쓸 때</b>
+      길게 누르기는 마우스를 누른 채 0.5초 정도 기다리면 됩니다. <code>Esc</code> 키로 재생 화면이나 열린 메뉴를 닫을 수 있습니다.
+    </div>
+  </section>
+
+  <!-- 05 -->
+  <section id="routine">
+    <h2><span class="num">05</span>루틴 · 운동 관리</h2>
+
+    <div class="card">
+      <h3>루틴(탭)</h3>
+      <dl class="rows">
+        <div><dt>추가</dt><dd>탭 줄 오른쪽 <b>＋</b> 버튼. 새 루틴은 요일마다 ‘운동 1’, ‘운동 2’ 두 칸이 기본으로 들어 있습니다.</dd></div>
+        <div><dt>이름 변경</dt><dd>탭 길게 누르기 → 이름 변경 (최대 40자)</dd></div>
+        <div><dt>복제</dt><dd>구성을 통째로 복사해 ‘◯◯ 복사본’을 만듭니다. 영상 연결도 함께 복사됩니다.</dd></div>
+        <div><dt>순서 이동</dt><dd>왼쪽 / 오른쪽으로 이동</dd></div>
+        <div><dt>삭제</dt><dd>루틴이 2개 이상일 때만 가능합니다. 삭제하면 그 루틴에서만 쓰이던 영상은 자동 정리됩니다.</dd></div>
+      </dl>
+    </div>
+
+    <div class="card">
+      <h3>운동 항목</h3>
+      <dl class="rows">
+        <div><dt>기본 운동</dt><dd>루틴을 만들 때 생기는 ‘운동 1 / 운동 2’. 이름 변경은 되지만 삭제는 되지 않습니다.</dd></div>
+        <div><dt>추가 운동</dt><dd>요일을 펼친 뒤 <b>＋ 추가 운동</b>으로 원하는 만큼 추가합니다. 삭제도 자유롭습니다.</dd></div>
+        <div><dt>이름 자동 입력</dt><dd>이름이 아직 ‘운동 1 / 운동 2’인 항목에 영상을 연결하면, 파일명(확장자 제외) 또는 유튜브 영상 제목이 이름으로 자동 입력됩니다.</dd></div>
+        <div><dt>순서 바꾸기</dt><dd>길게 누르기 → 위로 / 아래로 이동</dd></div>
+      </dl>
+    </div>
+  </section>
+
+  <!-- 06 -->
+  <section id="link">
+    <h2><span class="num">06</span>동영상 연결 — 2가지 방식</h2>
+    <p class="lede">운동을 누르면 <b>연결 방식 선택</b> 창이 먼저 뜹니다. 항목마다 다른 방식을 섞어 써도 됩니다.</p>
+
+    <div class="gestures">
+      <div class="g">
+        <span class="ico"><svg viewBox="0 0 24 24"><rect x="7" y="2" width="10" height="20" rx="2.5"/><path d="M11 18.5h2"/></svg></span>
+        <div><b>내 폰에서 파일 선택</b><span>갤러리·파일 앱에 있는 동영상을 고릅니다. 오프라인에서도 재생됩니다.</span></div>
+      </div>
+      <div class="g">
+        <span class="ico" style="color:var(--yt)"><svg viewBox="0 0 24 24"><rect x="2.5" y="5.5" width="19" height="13" rx="4"/><path d="m10 9.5 5 3-5 3z"/></svg></span>
+        <div><b>유튜브 링크 붙여넣기</b><span>링크만 넣으면 제목·썸네일을 자동으로 가져오고 앱 안에서 재생됩니다.</span></div>
+      </div>
+    </div>
+
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr><th>비교 항목</th><th>폰에 있는 파일</th><th>유튜브 링크</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>오프라인 재생</td><td class="yes">가능</td><td class="no">불가 — 인터넷 필요</td></tr>
+          <tr><td>저장공간 사용</td><td>기기에 따라 0 또는 영상 용량만큼</td><td class="yes">거의 없음 (주소·썸네일만)</td></tr>
+          <tr><td>연결하기</td><td>파일 선택 한 번</td><td>링크 복사 → 붙여넣기</td></tr>
+          <tr><td>영상 길이 표시</td><td class="yes">표시됨</td><td>표시 안 됨 (‘유튜브 · 채널명’으로 표기)</td></tr>
+          <tr><td>썸네일</td><td>영상에서 직접 캡처</td><td>유튜브 공식 썸네일</td></tr>
+          <tr><td>백업에 포함</td><td class="no">미포함 (기기 밖으로 못 나감)</td><td class="yes">포함 — 다른 기기에서도 복원됨</td></tr>
+          <tr><td>끊길 수 있는 경우</td><td>원본 파일을 삭제·이동한 경우</td><td>영상이 비공개/삭제되거나 외부 재생이 막힌 경우</td></tr>
+          <tr><td>광고</td><td class="yes">없음</td><td>유튜브 정책에 따라 재생됨</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h3>파일 연결이 저장되는 두 가지 방식</h3>
+      <p>기기가 최신 파일 접근 기능(File System Access API)을 지원하는지에 따라 자동으로 갈립니다. 현재 내 기기가 어느 쪽인지는 <b>영상함 → 저장공간</b> 카드 맨 아래 문구와 <b>진단 정보</b>에서 확인할 수 있습니다.</p>
+      <dl class="rows">
+        <div>
+          <dt>원본 참조</dt>
+          <dd>파일을 복사하지 않고 원본을 가리킵니다. 저장공간을 쓰지 않는 대신, <b>원본을 지우거나 옮기면 연결이 끊깁니다.</b> 재생할 때 기기가 접근 권한을 다시 물어볼 수 있습니다.</dd>
+        </div>
+        <div>
+          <dt>앱 저장소 복사</dt>
+          <dd>영상을 앱 저장소로 복사합니다. 원본을 지워도 재생되지만 <b>용량을 그만큼 차지합니다.</b> (아이폰 Safari가 주로 이 방식입니다)</dd>
+        </div>
+      </dl>
+    </div>
+
+    <div class="note">
+      <b>연결 바꾸기 · 해제하기</b>
+      운동을 길게 눌러 <b>동영상 변경</b>으로 다른 영상을 연결하거나, <b>연결 해제</b>로 영상만 떼어낼 수 있습니다. 어느 운동에서도 쓰이지 않게 된 영상은 자동으로 정리되어 저장공간을 되돌려줍니다.
+    </div>
+  </section>
+
+  <!-- 07 -->
+  <section id="youtube">
+    <h2><span class="num">07</span>유튜브 링크 자세히</h2>
+    <p class="lede"><span class="ytmark"></span>붙여넣은 유튜브 영상은 <b>앱 화면 안에서 그대로 재생</b>됩니다. 유튜브 앱으로 튕겨나가지 않습니다.</p>
+
+    <div class="card">
+      <h3>연결하는 법</h3>
+      <ol class="steps">
+        <li>유튜브 앱에서 <b>공유 → 링크 복사</b></li>
+        <li>내 루틴에서 운동을 누르고 <b>유튜브 링크 붙여넣기</b> 선택</li>
+        <li><b>[붙여넣기]</b> 버튼을 누르거나, 입력칸을 길게 눌러 직접 붙여넣기</li>
+        <li><b>[연결]</b> — 제목·채널·썸네일을 자동으로 가져옵니다</li>
+      </ol>
+    </div>
+
+    <div class="card">
+      <h3>인식되는 주소 형식</h3>
+      <div class="chips">
+        <span class="chip">youtu.be/VIDEOID</span>
+        <span class="chip">youtube.com/watch?v=VIDEOID</span>
+        <span class="chip">youtube.com/shorts/VIDEOID</span>
+        <span class="chip">youtube.com/live/VIDEOID</span>
+        <span class="chip">youtube.com/embed/VIDEOID</span>
+        <span class="chip">m. / music. 도메인</span>
+        <span class="chip">영상 ID 11자만</span>
+      </div>
+      <p style="margin-top:10px">재생목록·인덱스 같은 뒤에 붙는 값(<code>&amp;list=…</code>, <code>&amp;index=…</code>)은 무시하고 영상 하나만 정확히 골라냅니다. 유튜브 주소가 아니면 “유튜브 주소를 알아볼 수 없습니다”라고 알려주고 창이 닫히지 않으니 다시 붙여넣으면 됩니다.</p>
+
+      <h3>시작 지점 지정</h3>
+      <p>주소에 시간이 들어 있으면 <b>그 지점부터 재생</b>합니다. 준비 운동이 긴 영상에서 본론부터 보고 싶을 때 유용합니다.</p>
+      <div class="chips">
+        <span class="chip">?t=90 → 1분 30초부터</span>
+        <span class="chip">?t=1m30s → 동일</span>
+        <span class="chip">?t=1h2m3s → 1시간 2분 3초부터</span>
+      </div>
+      <p style="margin-top:10px;font-size:14px;color:var(--faint)">유튜브 앱에서 공유할 때 “재생 시점부터 시작” 옵션을 켜면 이 값이 자동으로 들어갑니다.</p>
+    </div>
+
+    <div class="card">
+      <h3>같은 영상을 여러 운동에</h3>
+      <p>이미 연결해 둔 유튜브 영상을 다른 운동에 또 연결하면 새로 만들지 않고 기존 항목을 공유합니다. 영상함에 중복이 쌓이지 않고, 어느 운동에서 쓰이는지 한 곳에 모여 보입니다.</p>
+    </div>
+
+    <div class="note warn">
+      <b>재생이 안 되는 경우</b>
+      업로더가 외부 사이트 재생(임베드)을 막아둔 영상, 비공개·삭제된 영상, 일부 연령 제한 영상은 앱 안에서 재생되지 않습니다. 이때는 안내 창과 함께 <b>[유튜브에서 열기]</b> 버튼이 뜨니 유튜브 앱에서 보시면 됩니다. 이 버튼은 항목을 길게 눌러도 항상 사용할 수 있습니다.
+    </div>
+
+    <div class="note warn">
+      <b>인터넷과 광고</b>
+      유튜브 영상은 저장공간을 쓰지 않는 대신 재생할 때마다 데이터를 씁니다. 와이파이 없는 헬스장에서 자주 본다면 파일 연결이 낫습니다. 광고는 유튜브 정책상 그대로 나옵니다.
+    </div>
+  </section>
+
+  <!-- 08 -->
+  <section id="play">
+    <h2><span class="num">08</span>재생과 완료 기록</h2>
+
+    <div class="card">
+      <dl class="rows">
+        <div><dt>전체 화면 재생</dt><dd>운동을 누르면 검은 배경의 전용 재생 화면이 열립니다. 상단에 운동 이름, 하단에 [건너뛰기] · [완료] 버튼이 있습니다.</dd></div>
+        <div><dt>화면 꺼짐 방지</dt><dd>재생 중에는 화면이 자동으로 꺼지지 않습니다. 앱을 잠깐 벗어났다 돌아와도 다시 걸립니다.</dd></div>
+        <div><dt>자동 완료</dt><dd>영상이 끝까지 재생되면 파일·유튜브 모두 <b>오늘 완료로 자동 표시</b>됩니다.</dd></div>
+        <div><dt>수동 완료</dt><dd>하단 [완료] 버튼, 또는 항목을 길게 눌러 ‘오늘 완료로 표시’. 같은 방법으로 취소도 됩니다.</dd></div>
+        <div><dt>닫기</dt><dd>우측 상단 ✕, 하단 [건너뛰기], 또는 <code>Esc</code> 키.</dd></div>
+      </dl>
+    </div>
+
+    <div class="card">
+      <h3>기록 탭에서 보이는 것</h3>
+      <ul class="plain">
+        <li><b>연속 달성</b> — 오늘부터 거슬러 올라가며 완료가 하나라도 있는 날이 며칠 이어졌는지</li>
+        <li><b>누적 완료</b> — 전체 기간 동안 완료한 운동 횟수의 합계</li>
+        <li><b>최근 3주</b> — 날짜별 완료 개수를 점으로 표시</li>
+      </ul>
+      <p style="margin:8px 0 0;font-size:14px;color:var(--faint)">완료 기록은 날짜별로 저장되며, 자정이 지나면 새 날로 넘어갑니다.</p>
+    </div>
+  </section>
+
+  <!-- 09 -->
+  <section id="library">
+    <h2><span class="num">09</span>영상함과 저장공간</h2>
+
+    <div class="card">
+      <dl class="rows">
+        <div><dt>영상 목록</dt><dd>연결한 순서(최신순)로 전부 보여줍니다. 각 항목에 썸네일, 이름, 길이 또는 ‘유튜브 · 채널명’, 그리고 <b>어느 루틴 · 요일에서 쓰이는지</b>가 표시됩니다.</dd></div>
+        <div><dt>영상 삭제</dt><dd>휴지통 버튼으로 지우면 그 영상을 쓰던 모든 운동의 연결이 함께 해제됩니다. (폰의 원본 파일은 지워지지 않습니다)</dd></div>
+        <div><dt>사용량 확인</dt><dd>맨 위 카드에서 앱이 차지하는 용량과 브라우저가 허용한 최대치를 막대로 보여줍니다.</dd></div>
+        <div><dt>자동 삭제 방지</dt><dd>브라우저는 저장공간이 부족하면 앱 데이터를 임의로 지울 수 있습니다. [자동 삭제 방지 켜기]로 이를 막아두세요. 홈 화면에 추가한 상태에서 더 잘 허용됩니다.</dd></div>
+      </dl>
+    </div>
+
+    <div class="note ok">
+      <b>용량이 부족하다는 안내가 뜬다면</b>
+      영상함에서 더 이상 쓰지 않는 영상을 지우거나, 큰 파일을 유튜브 링크로 바꿔 연결해 보세요. 유튜브 링크는 저장공간을 거의 쓰지 않습니다.
+    </div>
+  </section>
+
+  <!-- 10 -->
+  <section id="backup">
+    <h2><span class="num">10</span>백업과 복원</h2>
+    <p class="lede">상단 <b>☰ 메뉴</b>에서 루틴 구성을 JSON 파일로 내보내고 불러올 수 있습니다.</p>
+
+    <div class="card">
+      <dl class="rows">
+        <div><dt>백업에 포함</dt><dd>루틴 구성 전체, 운동 이름과 순서, 완료 기록, 그리고 <b>유튜브 링크 연결</b></dd></div>
+        <div><dt>포함되지 않음</dt><dd><b>폰 파일 연결</b> — 동영상 파일 자체나 파일 접근 권한은 기기를 벗어날 수 없습니다. 복원한 뒤 해당 운동만 다시 연결하면 됩니다.</dd></div>
+        <div><dt>파일 이름</dt><dd><code>routine-backup-YYYY-MM-DD.json</code></dd></div>
+        <div><dt>복원 시 주의</dt><dd>불러오기는 <b>현재 루틴과 기록을 덮어씁니다.</b> 필요하면 먼저 지금 상태를 내보내 두세요.</dd></div>
+      </dl>
+    </div>
+
+    <div class="note">
+      <b>기기를 바꿀 때</b>
+      백업 파일만 옮기면 루틴·기록·유튜브 영상 연결이 그대로 살아납니다. 폰에 있는 파일로 연결한 운동만 새 기기에서 다시 연결해 주면 됩니다.
+    </div>
+  </section>
+
+  <!-- 11 -->
+  <section id="trouble">
+    <h2><span class="num">11</span>문제 해결 · 진단</h2>
+    <p class="lede">상단 <b>☰ 메뉴 → 진단 정보 보기</b>에서 현재 상태를 한눈에 볼 수 있고, 그대로 복사해 공유할 수 있습니다.</p>
+
+    <div class="card">
+      <h3>진단 정보에 나오는 항목</h3>
+      <ul class="plain">
+        <li><b>보안 컨텍스트</b> — https가 아니면 대부분의 기능이 동작하지 않습니다</li>
+        <li><b>홈 화면 실행</b> — 설치형으로 실행 중인지, 그냥 브라우저 탭인지</li>
+        <li><b>파일 피커</b> — 이 기기가 ‘원본 참조’인지 ‘앱 저장소 복사’인지</li>
+        <li><b>저장 사용량</b> · <b>루틴 / 영상</b> (유튜브 개수 포함)</li>
+        <li><b>네트워크</b> — 오프라인이면 유튜브 영상은 재생되지 않습니다</li>
+        <li><b>기록된 오류</b> — 앱이 잡아둔 오류 메시지</li>
+      </ul>
+    </div>
+
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>증상</th><th>원인과 해결</th></tr></thead>
+        <tbody>
+          <tr><td>‘연결 끊김 — 다시 연결하세요’</td><td>원본 파일을 지웠거나 옮긴 경우입니다. 항목을 눌러 다시 연결하세요.</td></tr>
+          <tr><td>‘파일 접근 권한이 필요합니다’</td><td>원본 참조 방식에서 권한이 만료된 것입니다. 안내 창에서 다시 연결하면 됩니다.</td></tr>
+          <tr><td>유튜브 영상이 검은 화면</td><td>인터넷 연결을 확인하세요. 외부 재생이 막힌 영상이면 [유튜브에서 열기]로 보시면 됩니다.</td></tr>
+          <tr><td>[붙여넣기]가 안 됨</td><td>브라우저가 클립보드 접근을 막은 경우입니다. 입력칸을 길게 눌러 직접 붙여넣으세요.</td></tr>
+          <tr><td>저장에 실패 / 용량 부족</td><td>영상함에서 안 쓰는 영상을 지우거나, 유튜브 링크 연결로 바꿔보세요.</td></tr>
+          <tr><td>업데이트가 반영되지 않음</td><td>진단 정보의 <b>[캐시 비우고 새로고침]</b>을 누르세요. 서비스 워커와 캐시를 지우고 다시 불러옵니다.</td></tr>
+          <tr><td>앱이 아예 안 열림</td><td>오류 내용이 화면에 표시됩니다. [다시 시도]를 누르고, 계속되면 진단 정보를 복사해 두세요.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="note warn">
+      <b>데이터가 사라지지 않게</b>
+      브라우저 설정에서 ‘사이트 데이터 삭제 / 방문 기록 삭제’를 하면 루틴과 기록도 함께 지워집니다. 정기적으로 백업을 내보내 두시길 권합니다.
+    </div>
+  </section>
+
+  <!-- 12 -->
+  <section id="tech">
+    <h2><span class="num">12</span>기술 구조 (개발자용)</h2>
+    <p class="lede">빌드 도구·프레임워크·의존성이 없는 순수 정적 파일입니다. 그대로 정적 호스팅에 올리면 동작합니다.</p>
+
+    <div class="card">
+      <h3>파일 구성</h3>
+      <dl class="rows">
+        <div><dt><code>index.html</code></dt><dd>앱 셸. 상단바, 루틴 탭 줄, 본문 영역, 하단 네비게이션, 바텀시트, 재생 화면(<code>&lt;video&gt;</code> + 유튜브용 <code>#ytbox</code>), 토스트.</dd></div>
+        <div><dt><code>app.js</code></dt><dd>모든 로직. 상태 관리, IndexedDB 입출력, 영상 연결·재생, 렌더링, 백업.</dd></div>
+        <div><dt><code>styles.css</code></dt><dd>CSS 변수 기반 라이트/다크 테마, 세이프 에어리어 대응.</dd></div>
+        <div><dt><code>sw.js</code></dt><dd>서비스 워커. 앱 파일을 캐시하고 <b>외부 도메인 요청은 그대로 통과</b>시킵니다(유튜브 스트리밍 보호).</dd></div>
+        <div><dt><code>manifest.json</code></dt><dd>PWA 매니페스트 — 세로 고정, standalone 표시, 아이콘 3종.</dd></div>
+        <div><dt><code>guide.html</code></dt><dd>지금 보고 계신 이 문서.</dd></div>
+      </dl>
+    </div>
+
+    <div class="card">
+      <h3>데이터 저장</h3>
+      <p>IndexedDB(<code>workout-routine</code>) 안에 두 개의 저장소를 씁니다.</p>
+      <dl class="rows">
+        <div><dt><code>meta</code></dt><dd>키 <code>state</code> 하나에 루틴·기록·UI 상태 전체를 담습니다. 변경 후 120ms 디바운스로 저장됩니다.</dd></div>
+        <div><dt><code>videos</code></dt><dd>영상 레코드. <code>kind:'file'</code>은 파일 핸들 또는 Blob과 캡처한 썸네일을, <code>kind:'yt'</code>는 영상 ID·제목·채널·시작 시간·썸네일 주소를 담습니다.</dd></div>
+      </dl>
+      <p style="margin-top:8px">어떤 운동에서도 참조되지 않는 영상 레코드는 참조가 끊기는 시점에 자동으로 삭제됩니다.</p>
+    </div>
+
+    <div class="card">
+      <h3>유튜브 재생 방식</h3>
+      <ul class="plain">
+        <li>주소에서 영상 ID(11자)와 시작 초를 추출합니다. 허용 도메인만 정확히 대조해 다른 사이트 주소는 걸러냅니다.</li>
+        <li>제목·채널은 유튜브 <b>oEmbed</b> 엔드포인트로 가져옵니다(7초 타임아웃, 실패해도 연결은 진행).</li>
+        <li>재생은 <b>YouTube IFrame Player API</b>로 앱 화면 안에 플레이어를 심습니다. 종료 이벤트를 받아 완료를 자동 기록합니다.</li>
+        <li>API 스크립트를 못 불러오면 일반 <code>embed</code> iframe으로 자동 대체합니다(이 경우 자동 완료는 동작하지 않음).</li>
+        <li>재생 화면을 닫으면 플레이어를 파괴하고 iframe을 제거합니다.</li>
+      </ul>
+    </div>
+
+    <div class="note ok">
+      <b>개인정보</b>
+      계정도 서버도 분석 도구도 없습니다. 데이터는 전부 기기 안에만 있습니다. 외부로 나가는 통신은 유튜브 링크를 쓸 때의 <b>영상 정보 조회·썸네일·플레이어 로딩</b>이 전부이며, 유튜브 영상을 하나도 연결하지 않으면 외부 통신은 발생하지 않습니다.
+    </div>
+  </section>
+
+  <footer>
+    <div class="kv"><span>앱 이름</span><span>내 루틴 (My Routine)</span></div>
+    <div class="kv"><span>형태</span><span>설치형 PWA · 정적 파일 · 의존성 없음</span></div>
+    <div class="kv"><span>문서 갱신</span><span>2026-07-29</span></div>
+    <p style="margin-top:14px"><a href="./index.html">← 앱으로 돌아가기</a></p>
+  </footer>
+
+</div>
+
+</body>
+</html>

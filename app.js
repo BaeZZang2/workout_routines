@@ -1,7 +1,7 @@
 /* 내 루틴 — 운동 루틴 ↔ 내 폰 동영상 연결 PWA */
 'use strict';
 
-const BUILD = '2026-07-28b';
+const BUILD = '2026-07-29a';
 const PROBLEMS = [];
 let rendered = false;
 
@@ -41,6 +41,10 @@ const ICON = {
   plus: '<path d="M12 5v14M5 12h14"/>',
   refresh: '<path d="M20 12a8 8 0 1 1-2.3-5.6M20 4v5h-5"/>',
   info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>',
+  phone: '<rect x="7" y="2" width="10" height="20" rx="2.5"/><path d="M11 18.5h2"/>',
+  yt: '<rect x="2.5" y="5.5" width="19" height="13" rx="4"/><path d="m10 9.5 5 3-5 3z"/>',
+  paste: '<rect x="7" y="4" width="12" height="16" rx="2"/><path d="M5 8v10a2 2 0 0 0 2 2h1"/>',
+  open: '<path d="M14 4h6v6M20 4l-8 8"/><path d="M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4"/>',
 };
 const ic = (n, cls) => `<svg class="${cls || ''}" viewBox="0 0 24 24" aria-hidden="true">${ICON[n]}</svg>`;
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -216,7 +220,142 @@ async function probe(file) {
   return out;
 }
 
-async function linkVideo(item) {
+/* ---------- 유튜브 ---------- */
+const isYT = (v) => !!v && v.kind === 'yt';
+const YT_HOSTS = ['youtube.com', 'youtube-nocookie.com', 'music.youtube.com'];
+
+function parseStart(t) {
+  if (!t) return 0;
+  if (/^\d+$/.test(t)) return Math.min(+t, 86399);
+  const m = String(t).match(/^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?$/i);
+  if (!m || !(m[1] || m[2] || m[3])) return 0;
+  return (+m[1] || 0) * 3600 + (+m[2] || 0) * 60 + (+m[3] || 0);
+}
+
+function parseYT(raw) {
+  const s = String(raw || '').trim();
+  if (!s) return null;
+  if (/^[\w-]{11}$/.test(s)) return { id: s, start: 0 };
+  let u;
+  try { u = new URL(/^https?:\/\//i.test(s) ? s : 'https://' + s); } catch (_) { return null; }
+  const host = u.hostname.replace(/^(www|m)\./i, '').toLowerCase();
+  let id = '';
+  if (host === 'youtu.be') {
+    id = u.pathname.slice(1).split('/')[0];
+  } else if (YT_HOSTS.includes(host)) {
+    if (u.pathname === '/watch') id = u.searchParams.get('v') || '';
+    else {
+      const m = u.pathname.match(/^\/(?:embed|shorts|live|v)\/([^/?#]+)/);
+      if (m) id = m[1];
+    }
+  }
+  if (!/^[\w-]{11}$/.test(id)) return null;
+  return { id, start: parseStart(u.searchParams.get('t') || u.searchParams.get('start')) };
+}
+
+async function ytMeta(id) {
+  try {
+    const ctl = new AbortController();
+    const t = setTimeout(() => ctl.abort(), 7000);
+    const url = 'https://www.youtube.com/oembed?format=json&url=' +
+      encodeURIComponent('https://www.youtube.com/watch?v=' + id);
+    const r = await fetch(url, { signal: ctl.signal });
+    clearTimeout(t);
+    if (!r.ok) return {};
+    const j = await r.json();
+    return { title: j.title, author: j.author_name };
+  } catch (_) { return {}; }
+}
+
+/* ---------- 연결 ---------- */
+function linkVideo(item) {
+  sheet('동영상 연결', [
+    { icon: 'phone', label: '내 폰에서 파일 선택', run: () => linkFile(item) },
+    { icon: 'yt', label: '유튜브 링크 붙여넣기', run: () => askYouTube(item) },
+  ]);
+}
+
+function attach(item, rec, autoName) {
+  VIDEOS.set(rec.id, rec);
+  const old = item.videoId;
+  item.videoId = rec.id;
+  if (autoName && (item.name === '운동 1' || item.name === '운동 2' || !item.name)) {
+    item.name = autoName.slice(0, 40);
+  }
+  save();
+  if (old && old !== rec.id) gcVideo(old);
+  toast('연결했습니다');
+  render();
+}
+
+function askYouTube(item) {
+  const el = $('#sheet');
+  el.innerHTML =
+    `<div class="sheet-title">유튜브 링크 연결</div>
+     <form>
+       <input class="field" id="ytIn" placeholder="https://youtu.be/..." inputmode="url" autocomplete="off" spellcheck="false" autocapitalize="off">
+       <div class="it-sub" id="ytMsg" style="margin:8px 2px 0;white-space:normal">유튜브 앱에서 공유 → 링크 복사 후 붙여넣으세요.</div>
+       <div class="btn-row">
+         <button type="button" class="btn btn-ghost" id="ytPaste">붙여넣기</button>
+         <button type="submit" class="btn btn-accent">연결</button>
+       </div>
+     </form>`;
+  const inp = el.querySelector('#ytIn');
+  const msg = el.querySelector('#ytMsg');
+  el.onclick = async (e) => {
+    if (e.target.id !== 'ytPaste') return;
+    try {
+      const txt = await navigator.clipboard.readText();
+      if (txt) { inp.value = txt.trim(); msg.textContent = '붙여넣었습니다. [연결]을 누르세요.'; }
+      else msg.textContent = '클립보드가 비어 있습니다.';
+    } catch (_) {
+      msg.textContent = '붙여넣기 권한이 없습니다. 입력칸을 길게 눌러 붙여넣으세요.';
+      inp.focus();
+    }
+  };
+  el.querySelector('form').onsubmit = (e) => {
+    e.preventDefault();
+    const info = parseYT(inp.value);
+    if (!info) {
+      msg.textContent = '유튜브 주소를 알아볼 수 없습니다. youtu.be/… 또는 youtube.com/watch?v=… 형식이어야 합니다.';
+      msg.classList.add('warn');
+      return;
+    }
+    closeSheet();
+    linkYouTube(item, info);
+  };
+  $('#sheetWrap').hidden = false;
+  setTimeout(() => inp.focus(), 60);
+}
+
+async function linkYouTube(item, info) {
+  const dup = [...VIDEOS.values()].find((v) => isYT(v) && v.ytId === info.id);
+  if (dup) { attach(item, dup, dup.name); return true; }
+  toast('영상 정보를 가져오는 중…', 7000);
+  const meta = await ytMeta(info.id);
+  const rec = {
+    id: uid(),
+    kind: 'yt',
+    ytId: info.id,
+    start: info.start || 0,
+    name: meta.title || '유튜브 영상',
+    channel: meta.author || '',
+    poster: `https://i.ytimg.com/vi/${info.id}/hqdefault.jpg`,
+    url: `https://www.youtube.com/watch?v=${info.id}`,
+    duration: 0,
+    addedAt: Date.now(),
+  };
+  try {
+    await dbPut('videos', rec);
+  } catch (_) {
+    toast('링크를 저장하지 못했습니다');
+    return false;
+  }
+  attach(item, rec, rec.name);
+  return true;
+}
+
+async function linkFile(item) {
   const picked = await pickVideo();
   if (!picked) return false;
   const { file, handle } = picked;
@@ -224,6 +363,7 @@ async function linkVideo(item) {
   const meta = await probe(file);
   const rec = {
     id: uid(),
+    kind: 'file',
     name: file.name || '동영상',
     size: file.size || 0,
     type: file.type || '',
@@ -241,15 +381,7 @@ async function linkVideo(item) {
     toast('저장공간이 부족합니다. 영상함에서 사용하지 않는 영상을 지워보세요', 4000);
     return false;
   }
-  VIDEOS.set(rec.id, rec);
-  const old = item.videoId;
-  item.videoId = rec.id;
-  if (item.name === '운동 1' || item.name === '운동 2' || !item.name) {
-    item.name = (file.name || '운동').replace(/\.[^.]+$/, '').slice(0, 40);
-  }
-  save();
-  if (old) gcVideo(old);
-  toast('연결했습니다');
+  attach(item, rec, (file.name || '운동').replace(/\.[^.]+$/, ''));
   return true;
 }
 
@@ -284,9 +416,78 @@ function setDone(id, on) {
 
 /* ---------- 재생 ---------- */
 let curURL = null, curItemId = null, wakeLock = null;
+let ytPlayer = null, ytAPI = null;
+
+async function openPlayer(item) {
+  curItemId = item.id;
+  $('#playerTitle').textContent = item.name;
+  $('#player').hidden = false;
+  document.body.style.overflow = 'hidden';
+  try { if (navigator.wakeLock) wakeLock = await navigator.wakeLock.request('screen'); } catch (_) {}
+}
+
+function loadYTAPI() {
+  if (ytAPI) return ytAPI;
+  ytAPI = new Promise((res, rej) => {
+    if (window.YT && window.YT.Player) return res(window.YT);
+    const t = setTimeout(() => rej(new Error('timeout')), 8000);
+    const prev = window.onYouTubeIframeAPIReady;
+    window.onYouTubeIframeAPIReady = () => {
+      clearTimeout(t);
+      if (typeof prev === 'function') prev();
+      res(window.YT);
+    };
+    const s = document.createElement('script');
+    s.src = 'https://www.youtube.com/iframe_api';
+    s.onerror = () => { clearTimeout(t); rej(new Error('load')); };
+    document.head.appendChild(s);
+  });
+  ytAPI.catch(() => { ytAPI = null; });
+  return ytAPI;
+}
+
+async function playYT(rec) {
+  const box = $('#ytbox');
+  box.hidden = false;
+  $('#video').hidden = true;
+  box.innerHTML = '<div id="ytmount"></div>';
+  const vars = { autoplay: 1, playsinline: 1, rel: 0, modestbranding: 1, start: rec.start || 0 };
+  try {
+    const YT = await loadYTAPI();
+    if ($('#player').hidden) return;
+    ytPlayer = new YT.Player('ytmount', {
+      videoId: rec.ytId,
+      playerVars: vars,
+      events: {
+        onReady: (e) => { try { e.target.playVideo(); } catch (_) {} },
+        onStateChange: (e) => {
+          if (e.data === YT.PlayerState.ENDED && curItemId) {
+            setDone(curItemId, true);
+            toast('완료로 표시했습니다');
+          }
+        },
+        onError: () => sheet('재생할 수 없습니다', [
+          { html: '<div style="padding:6px 12px 10px;color:var(--dim);font-size:13.5px">업로더가 외부 재생을 막았거나 삭제된 영상입니다. 유튜브에서 열어보세요.</div>' },
+          { icon: 'open', label: '유튜브에서 열기', run: () => window.open(rec.url, '_blank', 'noopener') },
+        ]),
+      },
+    });
+  } catch (_) {
+    const q = Object.entries(vars).map(([k, v]) => `${k}=${v}`).join('&');
+    box.innerHTML = `<iframe src="https://www.youtube.com/embed/${encodeURIComponent(rec.ytId)}?${q}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>`;
+  }
+}
 
 async function play(item) {
-  if (!item.videoId) { await linkVideo(item); render(); return; }
+  if (!item.videoId) { linkVideo(item); return; }
+  const rec = VIDEOS.get(item.videoId) || (await dbGet('videos', item.videoId).catch(() => null));
+
+  if (isYT(rec)) {
+    await openPlayer(item);
+    playYT(rec);
+    return;
+  }
+
   let file;
   try {
     file = await getPlayable(item.videoId);
@@ -294,20 +495,18 @@ async function play(item) {
     const why = e.message === '권한' ? '파일 접근 권한이 필요합니다' : '동영상을 찾을 수 없습니다';
     sheet(item.name, [
       { html: `<div style="padding:6px 12px 10px;color:var(--dim);font-size:13.5px">${esc(why)}. 다시 연결하시겠어요?</div>` },
-      { icon: 'link', label: '동영상 다시 연결', run: async () => { await linkVideo(item); render(); } },
+      { icon: 'link', label: '동영상 다시 연결', run: () => linkVideo(item) },
     ]);
     return;
   }
   if (curURL) URL.revokeObjectURL(curURL);
   curURL = URL.createObjectURL(file);
-  curItemId = item.id;
-  $('#playerTitle').textContent = item.name;
   const v = $('#video');
+  v.hidden = false;
+  $('#ytbox').hidden = true;
   v.src = curURL;
-  $('#player').hidden = false;
-  document.body.style.overflow = 'hidden';
+  await openPlayer(item);
   v.play().catch(() => {});
-  try { if (navigator.wakeLock) wakeLock = await navigator.wakeLock.request('screen'); } catch (_) {}
 }
 
 function closePlayer() {
@@ -315,6 +514,10 @@ function closePlayer() {
   v.pause();
   v.removeAttribute('src');
   v.load();
+  v.hidden = false;
+  if (ytPlayer) { try { ytPlayer.destroy(); } catch (_) {} ytPlayer = null; }
+  $('#ytbox').innerHTML = '';
+  $('#ytbox').hidden = true;
   $('#player').hidden = true;
   document.body.style.overflow = '';
   if (curURL) { URL.revokeObjectURL(curURL); curURL = null; }
@@ -407,7 +610,8 @@ async function showDiag() {
     ['서비스 워커', 'serviceWorker' in navigator ? '사용 가능' : '없음'],
     ['파일 피커', hasPicker ? '지원 (원본 참조)' : '미지원 (앱 저장소 복사)'],
     ['저장 사용량', est],
-    ['루틴 / 영상', `${S.tabs.length}개 / ${VIDEOS.size}개`],
+    ['루틴 / 영상', `${S.tabs.length}개 / ${VIDEOS.size}개 (유튜브 ${[...VIDEOS.values()].filter(isYT).length}개)`],
+    ['네트워크', navigator.onLine === false ? '오프라인 — 유튜브 영상은 재생되지 않습니다' : '온라인'],
     ['기록된 오류', PROBLEMS.length ? PROBLEMS.join(' | ') : '없음'],
   ];
   const text = lines.map(([k, v]) => `${k}: ${v}`).join('\n');
@@ -527,8 +731,9 @@ function itemRow(x, dayIdx, j, isToday) {
     sub = '<span class="it-sub warn">연결 끊김 — 다시 연결하세요</span>';
     thumb = `<span class="thumb empty-thumb">${ic('unlink')}</span>`;
   } else {
-    sub = `<span class="it-sub">${[fmtDur(v.duration), x.base ? '기본' : '추가 운동'].filter(Boolean).join(' · ')}</span>`;
-    thumb = `<span class="thumb">${v.poster ? `<img src="${v.poster}" alt="">` : ''}<span class="ov">${ic('play')}</span></span>`;
+    const tag = isYT(v) ? '유튜브' : fmtDur(v.duration);
+    sub = `<span class="it-sub">${[tag, x.base ? '기본' : '추가 운동'].filter(Boolean).join(' · ')}</span>`;
+    thumb = `<span class="thumb">${v.poster ? `<img src="${esc(v.poster)}" alt="" loading="lazy">` : ''}<span class="ov">${ic('play')}</span>${isYT(v) ? '<span class="yt"></span>' : ''}</span>`;
   }
   return `<button class="item ${done ? 'is-done' : ''}" data-item="${x.id}">
     ${thumb}
@@ -540,9 +745,11 @@ function itemRow(x, dayIdx, j, isToday) {
 function itemMenu(item) {
   const ref = findItem(item.id);
   const list = ref.tab.days[ref.day];
+  const vid = item.videoId ? VIDEOS.get(item.videoId) : null;
   const rows = [];
   if (item.videoId) rows.push({ icon: 'play', label: '재생', run: () => play(item) });
-  rows.push({ icon: 'link', label: item.videoId ? '동영상 변경' : '동영상 연결', run: async () => { await linkVideo(item); render(); } });
+  rows.push({ icon: 'link', label: item.videoId ? '동영상 변경' : '동영상 연결', run: () => linkVideo(item) });
+  if (isYT(vid)) rows.push({ icon: 'open', label: '유튜브에서 열기', run: () => window.open(vid.url, '_blank', 'noopener') });
   rows.push({ icon: 'edit', label: '이름 변경', run: () => askText('운동 이름', item.name, (n) => { item.name = n; save(); render(); }) });
   rows.push({
     icon: isDone(item.id) ? 'circle' : 'check',
@@ -594,16 +801,19 @@ function renderLib() {
   };
   const body = list.length ? list.map((v) => {
     const u = usedBy(v.id);
+    const meta = isYT(v)
+      ? ['유튜브', v.channel]
+      : [fmtDur(v.duration), v.mode === 'blob' ? fmtSize(v.size) : '원본 참조'];
     return `<div class="card" style="padding:12px">
       <div style="display:flex;gap:11px;align-items:center">
-        <span class="thumb">${v.poster ? `<img src="${v.poster}" alt="">` : ic('play')}</span>
+        <span class="thumb">${v.poster ? `<img src="${esc(v.poster)}" alt="" loading="lazy">` : ic('play')}${isYT(v) ? '<span class="yt"></span>' : ''}</span>
         <span class="it-main"><span class="it-nm">${esc(v.name)}</span>
-          <span class="it-sub">${[fmtDur(v.duration), v.mode === 'blob' ? fmtSize(v.size) : '원본 참조'].filter(Boolean).join(' · ')}</span></span>
+          <span class="it-sub">${esc(meta.filter(Boolean).join(' · '))}</span></span>
         <button class="icon-btn" data-del="${v.id}" aria-label="삭제">${ic('trash')}</button>
       </div>
       <div class="it-sub" style="margin-top:8px">${u.length ? esc(u.join(', ')) : '사용 중인 운동 없음'}</div>
     </div>`;
-  }).join('') : '<div class="empty"><b>아직 연결한 영상이 없습니다</b>루틴 탭에서 운동을 눌러 폰에 있는 동영상을 연결하세요.</div>';
+  }).join('') : '<div class="empty"><b>아직 연결한 영상이 없습니다</b>루틴 탭에서 운동을 눌러 폰에 있는 동영상이나 유튜브 링크를 연결하세요.</div>';
 
   $('#view').innerHTML = `<div class="card" id="storeCard"><h2>저장공간</h2><div class="it-sub">확인하는 중…</div></div>${body}`;
 
@@ -642,7 +852,7 @@ async function showStorage() {
     <div class="bar"><i style="width:${pct}%"></i></div>
     <div class="kv" style="margin-top:8px"><span>브라우저 자동 삭제 방지</span><span>${persisted ? '적용됨' : '미적용'}</span></div>
     ${persisted ? '' : '<button class="btn" style="width:100%;margin-top:10px" id="btnPersist">자동 삭제 방지 켜기</button>'}
-    <div class="it-sub" style="margin-top:10px">${hasPicker ? '이 기기는 원본 파일을 참조합니다. 원본을 지우거나 옮기면 연결이 끊깁니다.' : '이 기기는 영상을 앱 저장소로 복사합니다. 원본을 지워도 재생되지만 용량을 차지합니다.'}</div>`;
+    <div class="it-sub" style="margin-top:10px;white-space:normal">${hasPicker ? '이 기기는 원본 파일을 참조합니다. 원본을 지우거나 옮기면 연결이 끊깁니다.' : '이 기기는 영상을 앱 저장소로 복사합니다. 원본을 지워도 재생되지만 용량을 차지합니다.'} 유튜브 링크는 저장공간을 쓰지 않지만 재생할 때 인터넷이 필요합니다.</div>`;
   const bp = $('#btnPersist');
   if (bp) bp.onclick = async () => {
     const ok = await navigator.storage.persist().catch(() => false);
@@ -654,14 +864,22 @@ async function showStorage() {
 /* ---------- 데이터 백업 ---------- */
 function exportData() {
   const clean = JSON.parse(JSON.stringify({ v: S.v, tabs: S.tabs, logs: S.logs }));
-  clean.tabs.forEach((t) => t.days.forEach((d) => d.forEach((i) => { i.videoId = null; })));
+  // 유튜브 링크는 주소만 있으면 되므로 백업에 함께 담는다. 폰 파일 연결은 기기를 벗어날 수 없다.
+  const yt = [...VIDEOS.values()].filter(isYT).map((v) => ({
+    id: v.id, kind: 'yt', ytId: v.ytId, start: v.start || 0,
+    name: v.name, channel: v.channel || '', poster: v.poster, url: v.url,
+    duration: 0, addedAt: v.addedAt,
+  }));
+  const keep = new Set(yt.map((v) => v.id));
+  clean.tabs.forEach((t) => t.days.forEach((d) => d.forEach((i) => { if (!keep.has(i.videoId)) i.videoId = null; })));
+  clean.videos = yt;
   const blob = new Blob([JSON.stringify(clean, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = `routine-backup-${todayKey()}.json`;
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-  toast('동영상 연결은 백업에 포함되지 않습니다', 3000);
+  toast('유튜브 링크는 함께 저장됩니다. 폰 파일 연결은 포함되지 않습니다', 3500);
 }
 function importData() {
   const inp = document.createElement('input');
@@ -672,6 +890,13 @@ function importData() {
     try {
       const j = JSON.parse(await f.text());
       if (!j.tabs || !Array.isArray(j.tabs)) throw new Error('형식');
+      if (Array.isArray(j.videos)) {
+        for (const v of j.videos) {
+          if (!v || v.kind !== 'yt' || !/^[\w-]{11}$/.test(String(v.ytId || ''))) continue;
+          await dbPut('videos', v).catch(() => {});
+          VIDEOS.set(v.id, v);
+        }
+      }
       S.tabs = j.tabs; S.logs = j.logs || {}; S.activeTabId = S.tabs[0].id;
       save(); render(); toast('불러왔습니다');
     } catch (_) { toast('파일 형식이 맞지 않습니다'); }

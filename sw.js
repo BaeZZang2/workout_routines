@@ -1,5 +1,5 @@
-const CACHE = 'routine-v2';
-const ASSETS = ['./', './index.html', './styles.css', './app.js', './manifest.json', './icon-192.png', './icon-512.png'];
+const CACHE = 'routine-v3';
+const ASSETS = ['./', './index.html', './guide.html', './styles.css', './app.js', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)).then(() => self.skipWaiting()));
@@ -15,6 +15,8 @@ self.addEventListener('activate', (e) => {
 
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;
+  // 유튜브 등 외부 요청은 그대로 통과시킨다 (범위 요청 · 스트리밍이 깨지지 않도록)
+  if (new URL(e.request.url).origin !== self.location.origin) return;
   e.respondWith(
     caches.match(e.request).then((hit) => {
       const net = fetch(e.request)
