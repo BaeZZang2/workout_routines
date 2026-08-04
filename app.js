@@ -1,7 +1,7 @@
 /* 내 루틴 — 운동 루틴 ↔ 내 폰 동영상 연결 PWA */
 'use strict';
 
-const BUILD = '2026-08-04a';
+const BUILD = '2026-08-04b';
 const PROBLEMS = [];
 let rendered = false;
 
@@ -985,49 +985,38 @@ document.addEventListener('visibilitychange', async () => {
 
 /* ---------- 뒤로 가기 / 앱 종료 ---------- */
 /* 히스토리에 더미 항목을 하나 얹어두고, 뒤로 가기로 그 항목이 빠질 때마다 가로챈다. */
+const EXIT_CONFIRM_MS = 2500;
 let exiting = false;
+let lastBackAt = 0;
 const pushGuard = () => { try { history.pushState({ guard: 1 }, ''); } catch (_) {} };
-
-function askExit() {
-  const el = $('#sheet');
-  el.innerHTML =
-    `<div class="sheet-title">앱 종료</div>
-     <div style="padding:2px 12px 0;font-size:15px">앱을 종료할까요?</div>
-     <div style="padding:0 12px 6px">
-       <div class="btn-row">
-         <button type="button" class="btn btn-ghost" id="exitNo">취소</button>
-         <button type="button" class="btn btn-accent" id="exitYes">확인</button>
-       </div>
-     </div>`;
-  el.onclick = (e) => {
-    if (e.target.id === 'exitNo') closeSheet();
-    else if (e.target.id === 'exitYes') { closeSheet(); exitApp(); }
-  };
-  $('#sheetWrap').hidden = false;
-}
 
 function exitApp() {
   exiting = true;
+  lastBackAt = 0;
   try { window.close(); } catch (_) {}
-  setTimeout(() => {
-    try { history.back(); } catch (_) {}
-    // 히스토리에 돌아갈 곳이 없어 그대로 남는 경우 (앱을 직접 실행한 첫 화면)
-    setTimeout(() => {
-      if (!exiting) return;
-      exiting = false;
-      toast('뒤로 가기를 한 번 더 누르면 앱이 닫힙니다', 2500);
-    }, 500);
-  }, 100);
+  try { history.back(); } catch (_) {}
+}
+
+function handleExitBack() {
+  const now = Date.now();
+  if (now - lastBackAt <= EXIT_CONFIRM_MS) {
+    exitApp();
+    return;
+  }
+  lastBackAt = now;
+  pushGuard();
+  toast('앱을 종료하려면 뒤로 가기 버튼을 한 번 더 눌러주세요.', EXIT_CONFIRM_MS);
 }
 
 window.addEventListener('popstate', () => {
-  if (exiting) return; // 종료를 확인했으면 막지 않는다
+  if (exiting) return; // 두 번째 뒤로 가기에서는 막지 않는다
   if (!$('#player').hidden) { closePlayer(); pushGuard(); return; }
   if (!$('#sheetWrap').hidden) { closeSheet(); pushGuard(); return; }
-  pushGuard();
-  askExit();
+  handleExitBack();
 });
-window.addEventListener('pageshow', (e) => { if (e.persisted) { exiting = false; pushGuard(); } });
+window.addEventListener('pageshow', (e) => {
+  if (e.persisted) { exiting = false; lastBackAt = 0; pushGuard(); }
+});
 
 /* ---------- 서비스 워커 ---------- */
 /* 새 버전이 배포되면 워커가 바뀌는 순간 화면을 한 번 새로고침해 최신 앱으로 맞춘다. */
