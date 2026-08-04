@@ -1029,6 +1029,21 @@ window.addEventListener('popstate', () => {
 });
 window.addEventListener('pageshow', (e) => { if (e.persisted) { exiting = false; pushGuard(); } });
 
+/* ---------- 서비스 워커 ---------- */
+/* 새 버전이 배포되면 워커가 바뀌는 순간 화면을 한 번 새로고침해 최신 앱으로 맞춘다. */
+function setupSW() {
+  if (!('serviceWorker' in navigator)) return;
+  const had = !!navigator.serviceWorker.controller;
+  let reloading = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!had || reloading) return;          // 첫 설치 때는 새로고침할 것이 없다
+    if (!$('#player').hidden) return;       // 재생 중에는 방해하지 않는다
+    reloading = true;
+    location.reload();
+  });
+  navigator.serviceWorker.register('./sw.js').catch(() => {});
+}
+
 /* ---------- 시작 ---------- */
 (async function init() {
   try {
@@ -1046,6 +1061,6 @@ window.addEventListener('pageshow', (e) => { if (e.persisted) { exiting = false;
     fatal('화면을 그리지 못했습니다\n' + (e && e.message));
     return;
   }
-  if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
+  setupSW();
   if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
 })();
