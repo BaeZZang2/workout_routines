@@ -1,7 +1,7 @@
 /* 내 루틴 — 운동 루틴 ↔ 내 폰 동영상 연결 PWA */
 'use strict';
 
-const BUILD = '2026-07-29a';
+const BUILD = '2026-08-04a';
 const PROBLEMS = [];
 let rendered = false;
 
@@ -82,11 +82,21 @@ const dbDel = (s, k) => idb(s, 'readwrite', (o) => o.delete(k));
 
 /* ---------- 상태 ---------- */
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
-const todayKey = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-};
+const dayKey = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const todayKey = () => dayKey(new Date());
 const todayIdx = () => (new Date().getDay() + 6) % 7;
+
+/* 이번 주(월요일 시작) 날짜 — 월요일이 지나면 자동으로 새 주가 되어 체크가 초기화된다 */
+let _week = null;
+function weekInfo() {
+  const tk = todayKey();
+  if (_week && _week.today === tk) return _week;
+  const n = new Date();
+  const mon = new Date(n.getFullYear(), n.getMonth(), n.getDate() - todayIdx());
+  const dates = Array.from({ length: 7 }, (_, i) => new Date(mon.getFullYear(), mon.getMonth(), mon.getDate() + i));
+  _week = { today: tk, dates, keys: dates.map(dayKey) };
+  return _week;
+}
 
 function newTab(name) {
   return {
@@ -407,10 +417,31 @@ async function getPlayable(videoId) {
 
 /* ---------- 완료 기록 ---------- */
 const todayLog = () => (S.logs[todayKey()] = S.logs[todayKey()] || {});
-const isDone = (id) => !!todayLog()[id];
+
+/* 이번 주 완료 상태: '' 미완료 / 'day' 해당 요일에 수행 / 'off' 다른 날에 수행 */
+function doneState(id, dayIdx) {
+  const { keys } = weekInfo();
+  if (dayIdx >= 0) {
+    const own = S.logs[keys[dayIdx]];
+    if (own && own[id]) return 'day';
+  }
+  return doneDayIdx(id, dayIdx) >= 0 ? 'off' : '';
+}
+
+/* 이번 주에서 dayIdx가 아닌 날 중 이 운동을 수행한 요일 (없으면 -1) */
+function doneDayIdx(id, dayIdx) {
+  const { keys } = weekInfo();
+  for (let i = 0; i < 7; i++) {
+    if (i === dayIdx) continue;
+    const l = S.logs[keys[i]];
+    if (l && l[id]) return i;
+  }
+  return -1;
+}
+
 function setDone(id, on) {
-  const l = todayLog();
-  if (on) l[id] = 1; else delete l[id];
+  if (on) todayLog()[id] = 1;
+  else weekInfo().keys.forEach((k) => { if (S.logs[k]) delete S.logs[k][id]; });
   save();
 }
 
@@ -677,27 +708,31 @@ function tabMenu(t) {
 function renderRoutine() {
   const t = activeTab();
   const ti = todayIdx();
+  const { dates } = weekInfo();
+  const doneCount = (i) => t.days[i].filter((x) => doneState(x.id, i)).length;
+
   const week = DAYS.map((d, i) => {
     const items = t.days[i];
-    const linked = items.filter((x) => x.videoId).length;
-    return `<div class="wcell ${i === ti ? 'is-today' : ''} ${items.length && linked === items.length ? 'is-full' : ''}">
-      <b>${d}</b><i>${linked}/${items.length}</i></div>`;
+    const date = dates[i];
+    const label = date.getDate() === 1 ? `${date.getMonth() + 1}/1` : date.getDate();
+    const doneN = doneCount(i);
+    return `<div class="wcell ${i === ti ? 'is-today' : ''} ${items.length && doneN === items.length ? 'is-full' : ''}">
+      <b>${d}</b><em>${label}</em><i>${doneN}/${items.length}</i></div>`;
   }).join('');
 
   const days = DAYS.map((d, i) => {
     const open = S.openDay === i;
     const items = t.days[i];
-    const doneN = i === ti ? items.filter((x) => isDone(x.id)).length : 0;
     const preview = items.map((x) => x.name).join(' · ') || '운동 없음';
     return `<section class="day ${i === ti ? 'is-today' : ''} ${open ? 'is-open' : ''}">
       <button class="day-h" data-day="${i}">
         <span class="nm">${d}요일</span>
         ${i === ti ? '<span class="pill">오늘</span>' : ''}
         ${!open ? `<span class="cnt" style="margin-left:8px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left">${esc(preview)}</span>` : ''}
-        <span class="cnt">${i === ti ? `${doneN}/${items.length}` : items.length}</span>
+        <span class="cnt">${doneCount(i)}/${items.length}</span>
         ${ic('chev', 'chev')}
       </button>
-      ${open ? `<div class="day-b">${items.map((x, j) => itemRow(x, i, j, i === ti)).join('') || '<div style="padding:14px 4px;color:var(--faint);font-size:13.5px">운동이 없습니다</div>'}
+      ${open ? `<div class="day-b">${items.map((x) => itemRow(x, i)).join('') || '<div style="padding:14px 4px;color:var(--faint);font-size:13.5px">운동이 없습니다</div>'}
         <button class="addbtn" data-add="${i}">＋ 추가 운동</button></div>` : ''}
     </section>`;
   }).join('');
@@ -720,25 +755,29 @@ function renderRoutine() {
   });
 }
 
-function itemRow(x, dayIdx, j, isToday) {
+function itemRow(x, dayIdx) {
   const v = x.videoId ? VIDEOS.get(x.videoId) : null;
-  const done = isToday && isDone(x.id);
-  let sub, thumb;
+  const st = doneState(x.id, dayIdx);
+  const oi = st === 'off' ? doneDayIdx(x.id, dayIdx) : -1;
+  let cls = 'it-sub', txt, thumb;
   if (!x.videoId) {
-    sub = '<span class="it-sub warn">동영상 연결 필요</span>';
+    cls += ' warn';
+    txt = '동영상 연결 필요';
     thumb = `<span class="thumb empty-thumb">${ic('link')}</span>`;
   } else if (!v) {
-    sub = '<span class="it-sub warn">연결 끊김 — 다시 연결하세요</span>';
+    cls += ' warn';
+    txt = '연결 끊김 — 다시 연결하세요';
     thumb = `<span class="thumb empty-thumb">${ic('unlink')}</span>`;
   } else {
     const tag = isYT(v) ? '유튜브' : fmtDur(v.duration);
-    sub = `<span class="it-sub">${[tag, x.base ? '기본' : '추가 운동'].filter(Boolean).join(' · ')}</span>`;
+    txt = [tag, x.base ? '기본' : '추가 운동'].filter(Boolean).join(' · ');
     thumb = `<span class="thumb">${v.poster ? `<img src="${esc(v.poster)}" alt="" loading="lazy">` : ''}<span class="ov">${ic('play')}</span>${isYT(v) ? '<span class="yt"></span>' : ''}</span>`;
   }
-  return `<button class="item ${done ? 'is-done' : ''}" data-item="${x.id}">
+  if (oi >= 0) txt = [txt, `${DAYS[oi]}요일에 완료`].filter(Boolean).join(' · ');
+  return `<button class="item ${st ? 'is-done' : ''}" data-item="${x.id}">
     ${thumb}
-    <span class="it-main"><span class="it-nm">${esc(x.name)}</span>${sub}</span>
-    <span class="it-end ${done ? 'done' : ''}">${ic(done ? 'check' : 'circle')}</span>
+    <span class="it-main"><span class="it-nm">${esc(x.name)}</span><span class="${cls}">${esc(txt)}</span></span>
+    <span class="it-end ${st === 'day' ? 'done' : ''}${st === 'off' ? 'done-off' : ''}">${ic(st ? 'check' : 'circle')}</span>
   </button>`;
 }
 
@@ -751,10 +790,11 @@ function itemMenu(item) {
   rows.push({ icon: 'link', label: item.videoId ? '동영상 변경' : '동영상 연결', run: () => linkVideo(item) });
   if (isYT(vid)) rows.push({ icon: 'open', label: '유튜브에서 열기', run: () => window.open(vid.url, '_blank', 'noopener') });
   rows.push({ icon: 'edit', label: '이름 변경', run: () => askText('운동 이름', item.name, (n) => { item.name = n; save(); render(); }) });
+  const st = doneState(item.id, ref.day);
   rows.push({
-    icon: isDone(item.id) ? 'circle' : 'check',
-    label: isDone(item.id) ? '오늘 완료 취소' : '오늘 완료로 표시',
-    run: () => { setDone(item.id, !isDone(item.id)); render(); },
+    icon: st ? 'circle' : 'check',
+    label: st ? '이번 주 완료 취소' : '오늘 완료로 표시',
+    run: () => { setDone(item.id, !st); render(); },
   });
   if (ref.idx > 0) rows.push({ icon: 'up', label: '위로 이동', run: () => { list.splice(ref.idx - 1, 0, list.splice(ref.idx, 1)[0]); save(); render(); } });
   if (ref.idx < list.length - 1) rows.push({ icon: 'down', label: '아래로 이동', run: () => { list.splice(ref.idx + 1, 0, list.splice(ref.idx, 1)[0]); save(); render(); } });
@@ -769,17 +809,28 @@ function itemMenu(item) {
 }
 
 function renderLog() {
+  /* 운동 id → 원래 배정된 요일 (0=월). 삭제된 운동은 없음 */
+  const dayOf = new Map();
+  S.tabs.forEach((t) => t.days.forEach((d, di) => d.forEach((i) => dayOf.set(i.id, di))));
+
   const rows = [];
   const d = new Date();
   let streak = 0, streakOn = true;
   for (let k = 0; k < 21; k++) {
     const day = new Date(d.getFullYear(), d.getMonth(), d.getDate() - k);
-    const key = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
-    const n = Object.keys(S.logs[key] || {}).length;
+    const wi = (day.getDay() + 6) % 7;
+    const ids = Object.keys(S.logs[dayKey(day)] || {});
+    const n = ids.length;
     if (streakOn) { if (n > 0) streak++; else if (k > 0) streakOn = false; }
+    const dots = n
+      ? ids.map((id) => {
+          const di = dayOf.get(id);
+          return `<i class="dot ${di === undefined ? 'gone' : di === wi ? 'on' : 'off'}"></i>`;
+        }).join('')
+      : '<i class="dot"></i>';
     rows.push(`<div class="logrow">
-      <span class="d">${day.getMonth() + 1}/${day.getDate()} (${DAYS[(day.getDay() + 6) % 7]})</span>
-      <span class="dots">${Array.from({ length: Math.max(n, 1) }, (_, i) => `<i class="dot ${i < n ? 'on' : ''}"></i>`).join('')}</span>
+      <span class="d">${day.getMonth() + 1}/${day.getDate()} (${DAYS[wi]})</span>
+      <span class="dots">${dots}</span>
       <span class="n">${n}</span></div>`);
   }
   const total = Object.values(S.logs).reduce((a, o) => a + Object.keys(o).length, 0);
@@ -789,7 +840,12 @@ function renderLog() {
       <div class="kv"><span>누적 완료</span><span>${total}회</span></div>
       <div class="kv"><span>오늘 완료</span><span>${Object.keys(todayLog()).length}회</span></div>
     </div>
-    <div class="card"><h2>최근 3주</h2>${rows.join('')}</div>`;
+    <div class="card"><h2>최근 3주</h2>
+      <div class="legend">
+        <span><i class="dot on"></i>배정된 요일에 수행</span>
+        <span><i class="dot off"></i>다른 요일에 수행</span>
+        <span><i class="dot gone"></i>삭제된 운동</span>
+      </div>${rows.join('')}</div>`;
 }
 
 function renderLib() {
@@ -927,6 +983,52 @@ document.addEventListener('visibilitychange', async () => {
   }
 });
 
+/* ---------- 뒤로 가기 / 앱 종료 ---------- */
+/* 히스토리에 더미 항목을 하나 얹어두고, 뒤로 가기로 그 항목이 빠질 때마다 가로챈다. */
+let exiting = false;
+const pushGuard = () => { try { history.pushState({ guard: 1 }, ''); } catch (_) {} };
+
+function askExit() {
+  const el = $('#sheet');
+  el.innerHTML =
+    `<div class="sheet-title">앱 종료</div>
+     <div style="padding:2px 12px 0;font-size:15px">앱을 종료할까요?</div>
+     <div style="padding:0 12px 6px">
+       <div class="btn-row">
+         <button type="button" class="btn btn-ghost" id="exitNo">취소</button>
+         <button type="button" class="btn btn-accent" id="exitYes">확인</button>
+       </div>
+     </div>`;
+  el.onclick = (e) => {
+    if (e.target.id === 'exitNo') closeSheet();
+    else if (e.target.id === 'exitYes') { closeSheet(); exitApp(); }
+  };
+  $('#sheetWrap').hidden = false;
+}
+
+function exitApp() {
+  exiting = true;
+  try { window.close(); } catch (_) {}
+  setTimeout(() => {
+    try { history.back(); } catch (_) {}
+    // 히스토리에 돌아갈 곳이 없어 그대로 남는 경우 (앱을 직접 실행한 첫 화면)
+    setTimeout(() => {
+      if (!exiting) return;
+      exiting = false;
+      toast('뒤로 가기를 한 번 더 누르면 앱이 닫힙니다', 2500);
+    }, 500);
+  }, 100);
+}
+
+window.addEventListener('popstate', () => {
+  if (exiting) return; // 종료를 확인했으면 막지 않는다
+  if (!$('#player').hidden) { closePlayer(); pushGuard(); return; }
+  if (!$('#sheetWrap').hidden) { closeSheet(); pushGuard(); return; }
+  pushGuard();
+  askExit();
+});
+window.addEventListener('pageshow', (e) => { if (e.persisted) { exiting = false; pushGuard(); } });
+
 /* ---------- 시작 ---------- */
 (async function init() {
   try {
@@ -937,6 +1039,7 @@ document.addEventListener('visibilitychange', async () => {
     toast('저장된 데이터를 읽지 못했습니다');
   }
   if (S.openDay === undefined) S.openDay = todayIdx();
+  pushGuard();
   try {
     render();
   } catch (e) {

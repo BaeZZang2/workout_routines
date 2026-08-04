@@ -1,4 +1,4 @@
-const CACHE = 'routine-v3';
+const CACHE = 'routine-v4';
 const ASSETS = ['./', './index.html', './guide.html', './styles.css', './app.js', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', (e) => {
