@@ -1,7 +1,7 @@
 /* 내 루틴 — 운동 루틴 ↔ 내 폰 동영상 연결 PWA */
 'use strict';
 
-const BUILD = '2026-08-04b';
+const BUILD = '2026-08-04c';
 const PROBLEMS = [];
 let rendered = false;
 
@@ -116,6 +116,7 @@ function blankState() {
 let S = blankState();
 let VIDEOS = new Map();
 let NAV = 'routine';
+let LOG_MONTH = null;
 let saveTimer = null;
 
 function save() {
@@ -809,43 +810,129 @@ function itemMenu(item) {
 }
 
 function renderLog() {
-  /* 운동 id → 원래 배정된 요일 (0=월). 삭제된 운동은 없음 */
-  const dayOf = new Map();
-  S.tabs.forEach((t) => t.days.forEach((d, di) => d.forEach((i) => dayOf.set(i.id, di))));
+  /* 운동 id → 이름·루틴·원래 배정된 요일. 삭제된 운동은 맵에 없다. */
+  const itemMeta = new Map();
+  S.tabs.forEach((t) => t.days.forEach((d, di) => d.forEach((i) => {
+    itemMeta.set(i.id, { name: i.name, tab: t.name, day: di });
+  })));
 
-  const rows = [];
-  const d = new Date();
-  let streak = 0, streakOn = true;
-  for (let k = 0; k < 21; k++) {
-    const day = new Date(d.getFullYear(), d.getMonth(), d.getDate() - k);
+  const now = new Date();
+  if (!LOG_MONTH) LOG_MONTH = new Date(now.getFullYear(), now.getMonth(), 1);
+  const year = LOG_MONTH.getFullYear();
+  const month = LOG_MONTH.getMonth();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const firstOffset = (new Date(year, month, 1).getDay() + 6) % 7;
+  const totalCells = Math.ceil((firstOffset + daysInMonth) / 7) * 7;
+  const isCurrentMonth = year === now.getFullYear() && month === now.getMonth();
+
+  let activeDays = 0;
+  let monthTotal = 0;
+  let monthStreak = 0;
+  let bestMonthStreak = 0;
+  const cells = [];
+  for (let cell = 0; cell < totalCells; cell++) {
+    const date = cell - firstOffset + 1;
+    if (date < 1 || date > daysInMonth) {
+      cells.push('<span class="cal-day is-empty" aria-hidden="true"></span>');
+      continue;
+    }
+    const day = new Date(year, month, date);
+    const key = dayKey(day);
     const wi = (day.getDay() + 6) % 7;
-    const ids = Object.keys(S.logs[dayKey(day)] || {});
-    const n = ids.length;
-    if (streakOn) { if (n > 0) streak++; else if (k > 0) streakOn = false; }
-    const dots = n
-      ? ids.map((id) => {
-          const di = dayOf.get(id);
-          return `<i class="dot ${di === undefined ? 'gone' : di === wi ? 'on' : 'off'}"></i>`;
-        }).join('')
-      : '<i class="dot"></i>';
-    rows.push(`<div class="logrow">
-      <span class="d">${day.getMonth() + 1}/${day.getDate()} (${DAYS[wi]})</span>
-      <span class="dots">${dots}</span>
-      <span class="n">${n}</span></div>`);
+    const ids = Object.keys(S.logs[key] || {});
+    if (ids.length) {
+      activeDays++;
+      monthStreak++;
+      bestMonthStreak = Math.max(bestMonthStreak, monthStreak);
+    } else {
+      monthStreak = 0;
+    }
+    monthTotal += ids.length;
+    const marks = ids.slice(0, 4).map((id) => {
+      const meta = itemMeta.get(id);
+      const state = !meta ? 'gone' : meta.day === wi ? 'on' : 'off';
+      return `<i class="cal-mark ${state}"></i>`;
+    }).join('');
+    const more = ids.length > 4 ? `<small>+${ids.length - 4}</small>` : '';
+    const today = key === todayKey();
+    const weekend = wi === 5 ? ' is-sat' : wi === 6 ? ' is-sun' : '';
+    cells.push(`<button class="cal-day ${ids.length ? 'has-log' : ''}${today ? ' is-today' : ''}${weekend}"
+      data-log-date="${key}" ${ids.length ? '' : 'disabled'}
+      aria-label="${month + 1}월 ${date}일, 운동 ${ids.length}개">
+      <b>${date}</b>
+      <span class="cal-marks">${marks}${more}</span>
+    </button>`);
   }
-  const total = Object.values(S.logs).reduce((a, o) => a + Object.keys(o).length, 0);
+
   $('#view').innerHTML = `
-    <div class="card"><h2>요약</h2>
-      <div class="kv"><span>연속 달성</span><span>${streak}일</span></div>
-      <div class="kv"><span>누적 완료</span><span>${total}회</span></div>
-      <div class="kv"><span>오늘 완료</span><span>${Object.keys(todayLog()).length}회</span></div>
+    <div class="log-summary" aria-label="${month + 1}월 운동 요약">
+      <div><b>${activeDays}</b><span>운동한 날</span></div>
+      <div><b>${monthTotal}</b><span>완료 운동</span></div>
+      <div><b>${bestMonthStreak}</b><span>최장 연속</span></div>
     </div>
-    <div class="card"><h2>최근 3주</h2>
-      <div class="legend">
-        <span><i class="dot on"></i>배정된 요일에 수행</span>
-        <span><i class="dot off"></i>다른 요일에 수행</span>
-        <span><i class="dot gone"></i>삭제된 운동</span>
-      </div>${rows.join('')}</div>`;
+    <section class="calendar-card">
+      <div class="cal-head">
+        <button class="cal-nav" id="logPrev" aria-label="이전 달">‹</button>
+        <div><strong>${year}년 ${month + 1}월</strong>${isCurrentMonth ? '<span>이번 달</span>' : ''}</div>
+        <button class="cal-nav" id="logNext" aria-label="다음 달" ${isCurrentMonth ? 'disabled' : ''}>›</button>
+      </div>
+      <div class="cal-weekdays">${DAYS.map((d) => `<span>${d}</span>`).join('')}</div>
+      <div class="calendar-grid">${cells.join('')}</div>
+      <div class="calendar-foot">
+        <div class="legend">
+          <span><i class="cal-mark on"></i>배정 요일</span>
+          <span><i class="cal-mark off"></i>다른 요일</span>
+          <span><i class="cal-mark gone"></i>삭제된 운동</span>
+        </div>
+        ${isCurrentMonth ? '' : '<button id="logToday">이번 달로</button>'}
+      </div>
+      ${activeDays ? '' : '<div class="cal-empty">이 달에는 아직 완료한 운동이 없습니다.</div>'}
+    </section>`;
+
+  $('#logPrev').onclick = () => {
+    LOG_MONTH = new Date(year, month - 1, 1);
+    renderLog();
+    window.scrollTo(0, 0);
+  };
+  const next = $('#logNext');
+  if (!next.disabled) next.onclick = () => {
+    LOG_MONTH = new Date(year, month + 1, 1);
+    renderLog();
+    window.scrollTo(0, 0);
+  };
+  const today = $('#logToday');
+  if (today) today.onclick = () => {
+    LOG_MONTH = new Date(now.getFullYear(), now.getMonth(), 1);
+    renderLog();
+    window.scrollTo(0, 0);
+  };
+  $('#view').querySelectorAll('[data-log-date]:not([disabled])').forEach((el) => {
+    el.onclick = () => showLogDay(el.dataset.logDate, itemMeta);
+  });
+}
+
+function showLogDay(key, itemMeta) {
+  const [year, month, date] = key.split('-').map(Number);
+  const day = new Date(year, month - 1, date);
+  const wi = (day.getDay() + 6) % 7;
+  const ids = Object.keys(S.logs[key] || {});
+  const items = ids.map((id) => {
+    const meta = itemMeta.get(id);
+    const state = !meta ? 'gone' : meta.day === wi ? 'on' : 'off';
+    const name = meta ? meta.name : '삭제된 운동';
+    const sub = meta
+      ? `${meta.tab} · ${DAYS[meta.day]}요일 루틴`
+      : '현재 루틴에서 삭제된 기록';
+    const label = state === 'on' ? '배정 요일' : state === 'off' ? '다른 요일' : '삭제됨';
+    return `<div class="log-detail-row">
+      <i class="cal-mark ${state}"></i>
+      <span><b>${esc(name)}</b><small>${esc(sub)}</small></span>
+      <em>${label}</em>
+    </div>`;
+  }).join('');
+  sheet(`${month}월 ${date}일 (${DAYS[wi]}) · ${ids.length}개 완료`, [
+    { html: `<div class="log-detail">${items}</div>` },
+  ]);
 }
 
 function renderLib() {
