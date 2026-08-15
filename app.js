@@ -1,7 +1,7 @@
 /* 내 루틴 — 운동 루틴 ↔ 내 폰 동영상 연결 PWA */
 'use strict';
 
-const BUILD = '2026-08-04c';
+const BUILD = '2026-08-15a';
 const PROBLEMS = [];
 let rendered = false;
 
@@ -110,7 +110,13 @@ function newTab(name) {
 }
 function blankState() {
   const t = newTab('루틴 1');
-  return { v: 1, activeTabId: t.id, tabs: [t], logs: {}, openDay: todayIdx() };
+  return { v: 1, activeTabId: t.id, tabs: [t], logs: {}, openDay: todayIdx(), openDayKey: todayKey() };
+}
+
+/* 오늘 요일 칸을 펼친 상태로 맞춘다. openDayKey는 이 값이 어느 날짜 기준인지 기억한다. */
+function openTodayDay() {
+  S.openDay = todayIdx();
+  S.openDayKey = todayKey();
 }
 
 let S = blankState();
@@ -741,7 +747,12 @@ function renderRoutine() {
   $('#view').innerHTML = `<div class="week">${week}</div>${days}`;
 
   $('#view').querySelectorAll('[data-day]').forEach((el) => {
-    el.onclick = () => { const i = +el.dataset.day; S.openDay = S.openDay === i ? -1 : i; save(); render(); };
+    el.onclick = () => {
+      const i = +el.dataset.day;
+      S.openDay = S.openDay === i ? -1 : i;
+      S.openDayKey = todayKey();
+      save(); render();
+    };
   });
   $('#view').querySelectorAll('[data-add]').forEach((el) => {
     el.onclick = () => askText('추가 운동 이름', '', (n) => {
@@ -1065,7 +1076,14 @@ document.addEventListener('keydown', (e) => {
   else if (!$('#sheetWrap').hidden) closeSheet();
 });
 document.addEventListener('visibilitychange', async () => {
-  if (document.visibilityState === 'visible' && !$('#player').hidden && navigator.wakeLock && !wakeLock) {
+  if (document.visibilityState !== 'visible') return;
+  /* 앱을 켠 채로 날짜가 바뀌었으면 다시 볼 때 오늘 요일 칸으로 맞춘다. */
+  if (rendered && S.openDayKey !== todayKey() && $('#player').hidden) {
+    openTodayDay();
+    save();
+    render();
+  }
+  if (!$('#player').hidden && navigator.wakeLock && !wakeLock) {
     try { wakeLock = await navigator.wakeLock.request('screen'); } catch (_) {}
   }
 });
@@ -1129,7 +1147,7 @@ function setupSW() {
   } catch (_) {
     toast('저장된 데이터를 읽지 못했습니다');
   }
-  if (S.openDay === undefined) S.openDay = todayIdx();
+  openTodayDay();   /* 앱을 열 때마다 오늘 요일 칸이 펼쳐진 상태로 시작한다 */
   pushGuard();
   try {
     render();

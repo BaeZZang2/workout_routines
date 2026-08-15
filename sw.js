@@ -1,4 +1,4 @@
-const CACHE = 'routine-v7';
+const CACHE = 'routine-v8';
 const ASSETS = ['./', './index.html', './guide.html', './styles.css', './app.js', './manifest.json', './icon-192.png', './icon-512.png'];
 const NET_TIMEOUT = 2500;
 
